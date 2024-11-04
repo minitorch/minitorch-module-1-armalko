@@ -22,8 +22,15 @@ def central_difference(f: Any, *vals: Any, arg: int = 0, epsilon: float = 1e-6) 
     Returns:
         An approximation of $f'_i(x_0, \ldots, x_{n-1})$
     """
-    # TODO: Implement for Task 1.1.
-    raise NotImplementedError("Need to implement for Task 1.1")
+    vals = list(vals)
+
+    vals[arg] += epsilon
+    f_plus = f(*vals)
+
+    vals[arg] -= 2 * epsilon
+    f_minus = f(*vals)
+
+    return (f_plus - f_minus) / (2 * epsilon)
 
 
 variable_count = 1
@@ -51,33 +58,52 @@ class Variable(Protocol):
         pass
 
 
-def topological_sort(variable: Variable) -> Iterable[Variable]:
+def topological_sort(variable: 'Variable') -> Iterable['Variable']:
     """
     Computes the topological order of the computation graph.
 
     Args:
-        variable: The right-most variable
+        variable: The right-most variable (output of the computation graph).
 
     Returns:
         Non-constant Variables in topological order starting from the right.
     """
-    # TODO: Implement for Task 1.4.
-    raise NotImplementedError("Need to implement for Task 1.4")
+    visited = set()
+    order: List['Variable'] = []
+
+    def dfs(v: 'Variable'):
+        if v.unique_id not in visited and not v.is_constant():
+            visited.add(v.unique_id)
+            for parent in v.parents:
+                dfs(parent)
+            order.append(v)
+
+    dfs(variable)
+
+    for i, var in enumerate(order):
+        print(f"Topological Order {i}: Variable ID = {var.unique_id}, Data = {var.data}")
+
+    return list(reversed(order))
 
 
-def backpropagate(variable: Variable, deriv: Any) -> None:
-    """
-    Runs backpropagation on the computation graph in order to
-    compute derivatives for the leave nodes.
 
-    Args:
-        variable: The right-most variable
-        deriv  : Its derivative that we want to propagate backward to the leaves.
+def backpropagate(variable: 'Variable', deriv: Any) -> None:
+    sorted_vars = topological_sort(variable)
+    gradients = {var.unique_id: 0.0 for var in sorted_vars}
+    gradients[variable.unique_id] = deriv
+    print(f"JOPA {sorted_vars}")
+    for var in sorted_vars:
+        current_deriv = gradients[var.unique_id]
 
-    No return. Should write to its results to the derivative values of each leaf through `accumulate_derivative`.
-    """
-    # TODO: Implement for Task 1.4.
-    raise NotImplementedError("Need to implement for Task 1.4")
+        if var.is_leaf():
+            var.accumulate_derivative(current_deriv)
+
+        for parent, parent_deriv in var.chain_rule(current_deriv):
+            if parent.unique_id in gradients:
+                gradients[parent.unique_id] += parent_deriv
+            else:
+                gradients[parent.unique_id] = parent_deriv
+
 
 
 @dataclass
